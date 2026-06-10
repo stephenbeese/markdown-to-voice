@@ -11,14 +11,9 @@ import {
   Volume2,
 } from "lucide-react";
 import { marked } from "marked";
+import { extractReadableChunksFromMarkdown } from "./lib/markdownReader";
 
 type ReaderState = "idle" | "playing" | "paused";
-
-type VoiceChunk = {
-  id: string;
-  label: string;
-  text: string;
-};
 
 const sampleMarkdown = `# A Short Markdown Listening Test
 
@@ -67,34 +62,6 @@ function getReadableElements(document: Document) {
   });
 }
 
-function getChunkLabel(element: Element) {
-  const tag = element.tagName.toLowerCase();
-
-  if (/^h[1-6]$/.test(tag)) return "Heading";
-  if (tag === "li") return "List item";
-  if (tag === "blockquote") return "Quote";
-  if (tag === "td" || tag === "th") return "Table cell";
-  return "Paragraph";
-}
-
-function cleanupText(text: string) {
-  return text.replace(/\s+/g, " ").trim();
-}
-
-function extractReadableChunks(html: string): VoiceChunk[] {
-  const document = new DOMParser().parseFromString(html, "text/html");
-  const ignoredSelector = "pre, code, script, style, svg, math";
-  document.querySelectorAll(ignoredSelector).forEach((node) => node.remove());
-
-  return getReadableElements(document)
-    .map((element, index) => ({
-      id: `chunk-${index}`,
-      label: getChunkLabel(element),
-      text: cleanupText(element.textContent ?? ""),
-    }))
-    .filter((chunk) => chunk.text.length > 0);
-}
-
 function decoratePreviewHtml(html: string, activeIndex: number) {
   const document = new DOMParser().parseFromString(html, "text/html");
 
@@ -126,7 +93,7 @@ export function App() {
   const shouldContinueRef = useRef(false);
 
   const renderedHtml = useMemo(() => marked.parse(markdown) as string, [markdown]);
-  const chunks = useMemo(() => extractReadableChunks(renderedHtml), [renderedHtml]);
+  const chunks = useMemo(() => extractReadableChunksFromMarkdown(markdown), [markdown]);
   const previewHtml = useMemo(
     () => decoratePreviewHtml(renderedHtml, activeChunkIndex),
     [activeChunkIndex, renderedHtml],
